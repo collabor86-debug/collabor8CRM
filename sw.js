@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 const CACHE = 'collabor8-v8';
+=======
+const CACHE = 'collabor8-v9';
+>>>>>>> 72c0e6d (Update Collabor8 CRM)
 
 const ASSETS = [
   './',

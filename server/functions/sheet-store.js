@@ -50,7 +50,11 @@ async function write(name,rows){
  const range=encodeURIComponent(`${name}!A:ZZ`);
  const headers=[...new Set(rows.flatMap(r=>Object.keys(r||{})))];
  const values=headers.length
+<<<<<<< HEAD
   ? [headers,...rows.map(r=>headers.map(h=>typeof r[h]==='object'?JSON.stringify(r[h]):r[h]??''))]
+=======
+  ? [headers,...rows.map(r=>headers.map(h=>{const v=r[h];if(v===null||v===undefined)return '';return typeof v==='object'?JSON.stringify(v):v;}))]
+>>>>>>> 72c0e6d (Update Collabor8 CRM)
   : [];
  await googleJson(
   `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(id)}/values/${range}:clear`,
