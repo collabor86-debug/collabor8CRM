@@ -1021,6 +1021,12 @@ function parkingRevenueFor(o){
   return (Number(o?.parking)||0)*PARKING_RATE;
 }
 function parkingDepositFor(o){ return Math.max(0,Number(o?.parkingDeposit)||0); }
+function occupantMonthlyRevenueFor(o){
+  return (Number(o?.rent)||0) + parkingRevenueFor(o);
+}
+function occupantMonthlyRevenueWithGSTFor(o){
+  return occupantMonthlyRevenueFor(o) * 1.18;
+}
 function normalizeOccupantRecord(o){
   const rec=Object.assign({},o||{});
   if(typeof rec.cabins==='string'){
@@ -1479,7 +1485,10 @@ function renderOccupantsTable(){
   const active=occupants.filter(o=>getStatus(o)!=='expired');
   document.getElementById('occ-summary-active').textContent=active.length;
   document.getElementById('occ-summary-seats').textContent=active.reduce((s,o)=>s+occupantSeatCount(o),0);
-  document.getElementById('occ-summary-rent').textContent=fmtINR(active.reduce((s,o)=>s+(o.rent||0),0));
+  const occupantMonthlyRevenue = active.reduce((s,o)=>s+occupantMonthlyRevenueFor(o),0);
+  document.getElementById('occ-summary-rent').textContent=fmtINR(occupantMonthlyRevenue);
+  const occupantMonthlyRevenueGst=document.getElementById('occ-summary-rent-gst');
+  if(occupantMonthlyRevenueGst) occupantMonthlyRevenueGst.textContent=fmtINR(occupantMonthlyRevenue*1.18);
   document.getElementById('occ-summary-deposit').textContent=fmtINR(active.reduce((s,o)=>s+(Number(o.deposit)||0),0));
   const parkingDepositSummary=document.getElementById('occ-summary-parking-deposit');
   if(parkingDepositSummary) parkingDepositSummary.textContent=fmtINR(active.reduce((s,o)=>s+parkingDepositFor(o),0));
