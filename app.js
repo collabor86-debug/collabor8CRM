@@ -914,8 +914,6 @@ function reconcileCabinOccupancy({persist=false}={}){
   return changed;
 }
 
-<<<<<<< HEAD
-=======
 // Sheets returns every cell as text. Older saves also wrote a null paidDate as the
 // literal string "null", which made unpaid rows look Paid after a refresh.
 function normalizePaymentRecord(r){
@@ -934,7 +932,6 @@ function normalizePaymentRecord(r){
   return rec;
 }
 
->>>>>>> 72c0e6d (Update Collabor8 CRM)
 async function syncAllFromSheets(){
   const [c, o, p, inv, l, q, vo, bk, d, settingsRows, vac] = await Promise.all([
     loadFromSheet('cabins'), loadFromSheet('occupants'), loadFromSheet('payments'),
@@ -946,11 +943,7 @@ async function syncAllFromSheets(){
   occupants = Array.isArray(o) ? o.map(normalizeOccupantRecord) : [];
   // Occupant records are the source of truth. Repair stale occupied flags in Sheets.
   reconcileCabinOccupancy({persist:true});
-<<<<<<< HEAD
-  payments = Array.isArray(p) ? p : [];
-=======
   payments = Array.isArray(p) ? p.map(normalizePaymentRecord) : [];
->>>>>>> 72c0e6d (Update Collabor8 CRM)
   invoices = Array.isArray(inv) ? inv : [];
   leads = Array.isArray(l) ? l : [];
   quotations = Array.isArray(q) ? q : [];
@@ -1157,38 +1150,6 @@ function showCabinTooltip(e,c){
   tt.style.top = (e.clientY-20)+'px';
 }
 
-<<<<<<< HEAD
-function renderSeatingTable(){
-  const q = (document.getElementById('floor-search')?.value||'').toLowerCase();
-  let list = cabinsOf(floorCurrent);
-  if(q) list = list.filter(c=> c.id.toLowerCase().includes(q) || (c.occupantName||'').toLowerCase().includes(q));
-  const body = document.getElementById('seating-body');
-  body.innerHTML = list.map((c,i)=>`
-    <tr>
-      <td>${i+1}</td>
-      <td><input class="table-input" value="${c.id}" onchange="renameCabin('${c.id}', this.value)" style="max-width:110px;"/></td>
-      <td><input class="table-input" type="number" min="1" value="${c.seater}" onchange="resizeCabin('${c.id}', this.value)" style="max-width:80px;"/></td>
-      <td><span class="toggle-yn ${isCabinOccupied(c)?'yes':'no'}" onclick="toggleCabinOccupied('${c.id}')">${isCabinOccupied(c)?'Yes':'No'}</span></td>
-      <td style="font-size:12px;color:var(--text3);">${c.occupantName||'—'}</td>
-      <td><button class="btn btn-sm btn-danger" onclick="deleteCabin('${c.id}')">Delete</button></td>
-    </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3);">No cabins match.</td></tr>';
-}
-
-function renameCabin(oldId, newVal){
-  newVal = newVal.trim();
-  if(!newVal || newVal===oldId) { renderFloorPage(); return; }
-  if(cabins.some(c=>c.id===newVal)){ alert('Cabin ID already exists.'); renderFloorPage(); return; }
-  const c = cabins.find(c=>c.id===oldId);
-  c.id = newVal;
-  occupants.forEach(o=> o.cabins = o.cabins.map(id=>id===oldId?newVal:id));
-  saveCabins(); saveOccupants(); refreshAll();
-}
-function resizeCabin(id, val){
-  const n = parseInt(val)||1;
-  const c = cabins.find(c=>c.id===id);
-  c.seater = n; saveCabins(); refreshAll();
-}
-=======
 // ══════════════════════════════════ SEATING DETAILS (SETTINGS) ══════════════════════════════════
 // The seating table lives in Settings. Rows are read-only until "Edit" is pressed.
 let settingsFloor = 'First Floor';
@@ -1255,7 +1216,6 @@ function saveSettingsCabin(oldId){
   renderSeatingSettings();
 }
 
->>>>>>> 72c0e6d (Update Collabor8 CRM)
 function toggleCabinOccupied(id){
   const c=cabins.find(x=>x.id===id); if(!c)return;
   const linked=(Array.isArray(occupants)?occupants:[]).find(o=>Array.isArray(o.cabins)&&o.cabins.some(cid=>String(cid)===String(id)));
@@ -1267,11 +1227,7 @@ function deleteCabin(id){
   if(!confirm('Delete cabin '+id+'? This cannot be undone.')) return;
   const linked=(Array.isArray(occupants)?occupants:[]).filter(o=>Array.isArray(o.cabins)&&o.cabins.some(cid=>String(cid)===String(id)));
   if(linked.length){alert('This cabin is assigned to '+linked.map(o=>o.name||o.id).join(', ')+'. Vacate the occupant first.');return;}
-<<<<<<< HEAD
-  cabins=cabins.filter(c=>c.id!==id);saveCabins();refreshAll();
-=======
   cabins=cabins.filter(c=>c.id!==id);saveCabins();settingsEditingCabin=null;refreshAll();renderSeatingSettings();
->>>>>>> 72c0e6d (Update Collabor8 CRM)
 }
 function openAddCabin(){
   const id = prompt('New Cabin ID (e.g. F13, S13, T13):');
@@ -1303,11 +1259,7 @@ function openCabinModal(id){
 function closeCabinModal(){ document.getElementById('cabinModal').classList.remove('open'); }
 
 function renderFloorPage(){
-<<<<<<< HEAD
-  renderFloorTabs(); renderCapacitySummary(); renderFloorFilters(); renderFloorGrid(); renderSeatingTable();
-=======
   renderFloorTabs(); renderCapacitySummary(); renderFloorFilters(); renderFloorGrid();
->>>>>>> 72c0e6d (Update Collabor8 CRM)
 }
 
 // ══════════════════════════════════ DASHBOARD QUICK VIEW (ALL FLOORS) ══════════════════════════════════
@@ -2060,8 +2012,16 @@ function ensurePaymentsGenerated(){
 }
 
 function paymentStatus(p){
-  if(p.paidDate) return 'paid';
-  const grace = new Date(p.dueDate); grace.setDate(grace.getDate()+5);
+  // Google Sheets returns cells as strings. Legacy rows may contain literal
+  // "null", "undefined", "false", or an empty paidDate for unpaid payments.
+  const rawPaidDate = p?.paidDate;
+  const hasPaidDate = rawPaidDate !== null &&
+    rawPaidDate !== undefined &&
+    !['','null','undefined','false','nan'].includes(String(rawPaidDate).trim().toLowerCase());
+  if(hasPaidDate) return 'paid';
+
+  const grace = new Date(p.dueDate);
+  grace.setDate(grace.getDate()+5);
   return new Date(today()) > grace ? 'overdue' : 'due';
 }
 let payTabCurrent = 'all';
@@ -2076,12 +2036,15 @@ function renderPaymentsPage(){
   const withStatus = list.map(p=>({...p, status:paymentStatus(p)}));
   if(payTabCurrent!=='all') { list = withStatus.filter(p=>p.status===payTabCurrent); } else { list = withStatus; }
 
-  const paidThisMonth = withStatus.filter(p=>p.status==='paid' && p.month===monthKey(new Date()));
+  // "Paid This Month" is the total amount paid for the current payment month.
+  // Always coerce the amount to a number because Google Sheets returns values as text.
+  const currentMonth = localMonthKey(new Date());
+  const paidThisMonth = withStatus.filter(p=>p.status==='paid' && p.month===currentMonth);
   const due = withStatus.filter(p=>p.status==='due');
   const overdue = withStatus.filter(p=>p.status==='overdue');
-  const allDueEver = withStatus.filter(p=>p.status!=='due' || true);
   const paidAll = withStatus.filter(p=>p.status==='paid');
-  document.getElementById('pm-paid').textContent = fmtINR(paidThisMonth.reduce((s,p)=>s+p.amountDue,0));
+  const paidThisMonthTotal = paidThisMonth.reduce((sum,p)=>sum+(Number(p.amountDue)||0),0);
+  document.getElementById('pm-paid').textContent = fmtINR(paidThisMonthTotal);
   document.getElementById('pm-paid-sub').textContent = paidThisMonth.length+' invoice(s)';
   document.getElementById('pm-due').textContent = fmtINR(due.reduce((s,p)=>s+p.amountDue,0));
   document.getElementById('pm-due-sub').textContent = due.length+' invoice(s)';
@@ -4724,12 +4687,8 @@ async function deleteOccDoc(id, occId){
 
 async function renderSettingsPage(){
   const el=document.getElementById('settings-content'); if(!el)return;
-<<<<<<< HEAD
-  el.innerHTML=`<div class="grid-2"><div class="card"><div class="card-title">Workspace Settings</div><div class="form-group"><label class="form-label">Payment Link</label><input class="form-input" id="set-payment-link" value="${esc(appSettings.paymentLink||'')}"/></div><div class="form-group"><label class="form-label">Default UPI ID</label><input class="form-input" id="set-upi" value="${esc(appSettings.upiId||'')}"/></div><div class="form-group"><label class="form-label">UPI Payee Name</label><input class="form-input" id="set-payee" value="${esc(appSettings.payeeName||'COLLABOR8')}"/></div><button class="btn btn-primary" onclick="saveSupportSettings()">Save Settings</button><span id="settings-note" style="margin-left:10px;color:var(--teal);font-size:12px;"></span></div><div class="card"><div class="card-title">System</div><div class="agreement-terms"><div class="term"><strong>Storage</strong> Google Sheets for CRM data · Google Drive for documents</div><div class="term"><strong>Documents</strong> PDF, JPG, PNG · maximum 5 MB</div><div class="term"><strong>Theme</strong> ${appSettings.theme==='light'?'Light':'Dark'}</div><div class="term"><strong>Role</strong> ${currentUser?.role||'—'}</div></div></div></div>`;
-=======
   el.innerHTML=`<div class="grid-2"><div class="card"><div class="card-title">Workspace Settings</div><div class="form-group"><label class="form-label">Payment Link</label><input class="form-input" id="set-payment-link" value="${esc(appSettings.paymentLink||'')}"/></div><div class="form-group"><label class="form-label">Default UPI ID</label><input class="form-input" id="set-upi" value="${esc(appSettings.upiId||'')}"/></div><div class="form-group"><label class="form-label">UPI Payee Name</label><input class="form-input" id="set-payee" value="${esc(appSettings.payeeName||'COLLABOR8')}"/></div><button class="btn btn-primary" onclick="saveSupportSettings()">Save Settings</button><span id="settings-note" style="margin-left:10px;color:var(--teal);font-size:12px;"></span></div><div class="card"><div class="card-title">System</div><div class="agreement-terms"><div class="term"><strong>Storage</strong> Google Sheets for CRM data · Google Drive for documents</div><div class="term"><strong>Documents</strong> PDF, JPG, PNG · maximum 5 MB</div><div class="term"><strong>Theme</strong> ${appSettings.theme==='light'?'Light':'Dark'}</div><div class="term"><strong>Role</strong> ${currentUser?.role||'—'}</div></div></div></div><div class="card" id="seating-settings-card" style="margin-top:16px;"></div>`;
   settingsEditingCabin=null; renderSeatingSettings();
->>>>>>> 72c0e6d (Update Collabor8 CRM)
 }
 function saveSupportSettings(){ appSettings.paymentLink=document.getElementById('set-payment-link').value.trim(); appSettings.upiId=document.getElementById('set-upi').value.trim(); appSettings.payeeName=document.getElementById('set-payee').value.trim()||'COLLABOR8'; saveSettings(); const n=document.getElementById('settings-note'); if(n)n.textContent='✓ Saved'; }
 async function renderAuditPage(){
