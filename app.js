@@ -997,7 +997,16 @@ function today(){ return new Date().toISOString().slice(0,10); }
 function daysLeft(endDate){ return Math.round((new Date(endDate)-new Date(today()))/86400000); }
 function getDaysFromToday(endDate){ return daysLeft(endDate); }
 function fmtDate(d){ if(!d) return '—'; return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
-function fmtINR(n){ n=Number(n)||0; return '₹'+n.toLocaleString('en-IN',{maximumFractionDigits:2}); }
+function fmtINR(n){ n=Number(n); if(!Number.isFinite(n)) n=0; return '₹'+n.toLocaleString('en-IN',{maximumFractionDigits:2}); }
+function parseMoneyAmount(value){
+  if(value===null || value===undefined || String(value).trim()==='') return 0;
+  if(typeof value==='number') return Number.isFinite(value) && value>=0 ? value : 0;
+  // Sheets may return formatted currency strings such as ₹37,500 or 37,500.
+  const cleaned=String(value).replace(/[₹,\s]/g,'').replace(/INR/ig,'').trim();
+  if(!cleaned || !/^\d+(?:\.\d{1,2})?$/.test(cleaned)) return 0;
+  const amount=Number(cleaned);
+  return Number.isFinite(amount) && amount>=0 ? amount : 0;
+}
 function formatDateDDMMYYYY(v){
   if(!v) return '';
   const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -1016,13 +1025,15 @@ function parseDateDDMMYYYY(v){
 function readAgreementDate(id){ return parseDateDDMMYYYY(document.getElementById(id)?.value||''); }
 function setAgreementDate(id,value){ const el=document.getElementById(id); if(el) el.value=formatDateDDMMYYYY(value); }
 function parkingRevenueFor(o){
-  const explicit=Number(o?.parkingRevenue);
-  if(Number.isFinite(explicit) && explicit>=0) return explicit;
-  return (Number(o?.parking)||0)*PARKING_RATE;
+  const raw=o?.parkingRevenue;
+  if(raw!==null && raw!==undefined && String(raw).trim()!=='' ){
+    return parseMoneyAmount(raw);
+  }
+  return parseMoneyAmount(o?.parking)*PARKING_RATE;
 }
-function parkingDepositFor(o){ return Math.max(0,Number(o?.parkingDeposit)||0); }
+function parkingDepositFor(o){ return parseMoneyAmount(o?.parkingDeposit); }
 function occupantMonthlyRevenueFor(o){
-  return (Number(o?.rent)||0) + parkingRevenueFor(o);
+  return parseMoneyAmount(o?.rent) + parkingRevenueFor(o);
 }
 function occupantMonthlyRevenueWithGSTFor(o){
   return occupantMonthlyRevenueFor(o) * 1.18;
@@ -1039,9 +1050,12 @@ function normalizeOccupantRecord(o){
     catch(e){ rec.seatAllocations={}; }
   }
   if(!rec.seatAllocations || typeof rec.seatAllocations!=='object') rec.seatAllocations={};
+  rec.rent=parseMoneyAmount(rec.rent);
+  rec.deposit=parseMoneyAmount(rec.deposit);
+  rec.advance=parseMoneyAmount(rec.advance);
   rec.parking=Math.max(0,parseInt(rec.parking,10)||0);
-  rec.parkingRevenue=Number.isFinite(Number(rec.parkingRevenue)) ? Math.max(0,Number(rec.parkingRevenue)) : rec.parking*PARKING_RATE;
-  rec.parkingDeposit=Math.max(0,Number(rec.parkingDeposit)||0);
+  rec.parkingRevenue=(rec.parkingRevenue!==null && rec.parkingRevenue!==undefined && String(rec.parkingRevenue).trim()!=='') ? parseMoneyAmount(rec.parkingRevenue) : rec.parking*PARKING_RATE;
+  rec.parkingDeposit=parseMoneyAmount(rec.parkingDeposit);
   return rec;
 }
 function normalizeVacatedRecord(v){
@@ -1485,10 +1499,14 @@ function renderOccupantsTable(){
   const active=occupants.filter(o=>getStatus(o)!=='expired');
   document.getElementById('occ-summary-active').textContent=active.length;
   document.getElementById('occ-summary-seats').textContent=active.reduce((s,o)=>s+occupantSeatCount(o),0);
-  const occupantMonthlyRevenue = active.reduce((s,o)=>s+occupantMonthlyRevenueFor(o),0);
-  document.getElementById('occ-summary-rent').textContent=fmtINR(occupantMonthlyRevenue);
-  const occupantMonthlyRevenueGst=document.getElementById('occ-summary-rent-gst');
-  if(occupantMonthlyRevenueGst) occupantMonthlyRevenueGst.textContent=fmtINR(occupantMonthlyRevenue*1.18);
+  // Force numeric accumulation so malformed/string-formatted Sheet values cannot
+  // concatenate into an enormous total. Both cards derive from the same base total.
+  const occupantMonthlyRevenue = active.reduce((sum,o)=>sum + occupantMonthlyRevenueFor(o), 0);
+  const occupantMonthlyRevenueGst = occupantMonthlyRevenue * 1.18;
+  const occupantRevenueEl=document.getElementById('occ-summary-rent');
+  if(occupantRevenueEl) occupantRevenueEl.textContent=fmtINR(occupantMonthlyRevenue);
+  const occupantMonthlyRevenueGstEl=document.getElementById('occ-summary-rent-gst');
+  if(occupantMonthlyRevenueGstEl) occupantMonthlyRevenueGstEl.textContent=fmtINR(occupantMonthlyRevenueGst);
   document.getElementById('occ-summary-deposit').textContent=fmtINR(active.reduce((s,o)=>s+(Number(o.deposit)||0),0));
   const parkingDepositSummary=document.getElementById('occ-summary-parking-deposit');
   if(parkingDepositSummary) parkingDepositSummary.textContent=fmtINR(active.reduce((s,o)=>s+parkingDepositFor(o),0));
