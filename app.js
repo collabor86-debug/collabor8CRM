@@ -2172,7 +2172,10 @@ function exportRevenueReport(){
   if(typeof XLSX === 'undefined'){ alert('Excel library failed to load (no internet access?). Please check your connection and retry.'); return; }
   ensurePaymentsGenerated();
   const active = occupants.filter(o=>getStatus(o)!=='expired');
-  const totalRent = active.reduce((s,o)=>s+(o.rent||0),0);
+  const totalRent = active.reduce((sum, o) => {
+  const rent = Number(String(o.rent ?? 0).replace(/[₹,\s]/g, ""));
+  return sum + (Number.isFinite(rent) ? rent : 0);
+}, 0);
   const totalParkingUnits = active.reduce((s,o)=>s+(o.parking||0),0);
   const totalParkingRevenue = active.reduce((sum,o)=>sum+parkingRevenueFor(o),0);
   const totalSeats = cabins.reduce((s,c)=>s+(c.seater||0),0) || 213;
