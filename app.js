@@ -4742,14 +4742,31 @@ async function toggleUser(id,active){const r=await fetch('/api/users',{method:'P
 // ══════════════════════════════════ THEME & MOBILE NAV ══════════════════════════════════
 // Theme (and the other small settings below) are persisted to the "settings" tab in
 // Google Sheets via appSettings/saveSettings — no localStorage involved.
-function applyTheme(theme){
+
+function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
+
   const icon = document.getElementById('theme-toggle-icon');
   const label = document.getElementById('theme-toggle-label');
-  if(theme==='light'){ icon.textContent='☀'; label.textContent='Light mode'; }
-  else { icon.textContent='☾'; label.textContent='Dark mode'; }
+
+  if (theme === 'light') {
+    icon.textContent = '☀';
+    label.textContent = 'Light mode';
+  } else {
+    icon.textContent = '☾';
+    label.textContent = 'Dark mode';
+  }
+
+  // Switch Collabor8 logo according to the theme
+  document.querySelectorAll('.brand-logo').forEach(logo => {
+    logo.src = theme === 'light'
+      ? logo.dataset.lightLogo
+      : logo.dataset.darkLogo;
+  });
+
   appSettings.theme = theme;
 }
+
 function toggleTheme(){
   const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
   applyTheme(current === 'light' ? 'dark' : 'light');
