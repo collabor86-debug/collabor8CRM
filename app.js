@@ -2784,21 +2784,41 @@ function parseTaxInvoiceSheet(ws){
     }
   }
 
-  /*
-   * If the invoice has item GST but no explicit
-   * CGST/SGST percentages, default to half of the
-   * common GST rate.
-   */
-  if(!cgstPct && !sgstPct){
 
-    const firstRate =
-      Number(items[0]?.gstRate) || 0;
+/*
+ * If CGST and SGST percentages are not provided,
+ * derive them from the first available positive
+ * item GST rate.
+ */
 
-    if(firstRate){
-      cgstPct = firstRate / 2;
-      sgstPct = firstRate / 2;
-    }
+const hasCgstPct =
+  cgstPct !== null &&
+  cgstPct !== undefined &&
+  cgstPct !== '';
+
+const hasSgstPct =
+  sgstPct !== null &&
+  sgstPct !== undefined &&
+  sgstPct !== '';
+
+if (!hasCgstPct && !hasSgstPct) {
+  const firstRate = (Array.isArray(items) ? items : [])
+    .map(item => {
+      const rawRate = item?.gstRate;
+      if (rawRate === null || rawRate === undefined || rawRate === '') {
+        return 0;
+      }
+
+      return Number(String(rawRate).replace('%', '').trim()) || 0;
+    })
+    .find(rate => rate > 0) || 0;
+
+  if (firstRate > 0) {
+    cgstPct = firstRate / 2;
+    sgstPct = firstRate / 2;
   }
+}
+
 
   /*
    * Create Collabor8 invoice object.
